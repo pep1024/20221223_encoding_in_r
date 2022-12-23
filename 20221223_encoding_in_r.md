@@ -9,9 +9,8 @@ Show examples of how character encoding works in R
 
 ## Reference
 
-This analysis is based on the document \[Encoding character strings in
-R\]
-(<https://rstudio-pubs-static.s3.amazonaws.com/279354_f552c4c41852439f910ad620763960b6.html>).
+This analysis is based on the document [Encoding character strings in
+R](https://rstudio-pubs-static.s3.amazonaws.com/279354_f552c4c41852439f910ad620763960b6.html).
 I also used additional information from [R4DS 2ed,
 WIP](https://r4ds.hadley.nz/strings.html)
 
