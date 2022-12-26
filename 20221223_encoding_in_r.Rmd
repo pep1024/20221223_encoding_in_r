@@ -9,14 +9,21 @@ output: github_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+library(Unicode)
+```
+
+
 ## Goal
 
 Show examples of how character encoding works in R
 
 ## Reference
 
-This analysis is based on the document [Encoding character strings in R](https://rstudio-pubs-static.s3.amazonaws.com/279354_f552c4c41852439f910ad620763960b6.html).
-I also used additional information from [R4DS 2ed, WIP](https://r4ds.hadley.nz/strings.html)
+This analysis is based on:
+
+* [Encoding character strings in R](https://rstudio-pubs-static.s3.amazonaws.com/279354_f552c4c41852439f910ad620763960b6.html)
+* [R4DS (2ed), WIP](https://r4ds.hadley.nz/strings.html)
 
 ## Steps
 
@@ -32,10 +39,27 @@ Sys.info()[1:5]
 sessionInfo()
 ```
 
-Language is set to English in the .Rprofile file with the line `invisible(Sys.setlocale(locale = "English"))`. I revert it to my windows OS language with `Sys.setlocale()`
-```{r}
+Language is set to English in my .Rprofile file with the line `invisible(Sys.setlocale(locale = "English"))`. I revert it to my windows OS language with `Sys.setlocale()`
 
+```{r}
+locales_detail <- function(){
+  info <- Sys.getlocale() |> 
+    strsplit(";") |> 
+    unlist() |> 
+    strsplit("=") 
+  v <- sapply(info, \(x) x[2])
+  names(v) <- sapply(info, \(x) x[1])
+  return(v)
+}
+
+locales_detail()
 ```
+
+```{r}
+invisible(Sys.setlocale())
+locales_detail()
+```
+
 
 ```{r}
 getOption("encoding")
@@ -58,22 +82,60 @@ Three functions related to encoding in R base: `Encoding()`, `enc2native()` and
 `enc2utf8()`
 
 ```{r}
-x_latin1 <- "Els calçots creixen millor quan 'El Niño' és molt fort"
-
+x_latin1 <- "Calçots més\n'El Niño'\n"
 ```
 
 ```{r}
 Encoding(x_latin1)
 ```
+```{r}
+print(x_latin1)
+```
+```{r}
+cat(x_latin1)
+```
+
+```{r}
+enc2native(x_latin1) |> 
+  Encoding()
+```
+
 
 ```{r}
 x_utf8 <- enc2utf8(x_latin1)
 Encoding(x_utf8)
 ```
+```{r}
+print(x_utf8)
+```
+```{r}
+cat(x_utf8)
+```
+
 ### Convert to raw
 
 ```{r}
-charToRaw(x_latin1)
+x_bytes <- charToRaw(x_latin1)
+x_bytes
+```
+
+```{r}
+class(x_bytes[1])
+```
+```{r}
+as.integer(x_bytes)
+```
+
+```{r}
+as.hexmode(as.character(x_bytes[1])) * as.hexmode("0x100")
+```
+```{r}
+as.hexmode("4300")
+```
+```{r}
+as.hexmode("0xe9")
+as.hexmode("e9")
+print("\xe9")
 ```
 
 ```{r}
@@ -86,7 +148,7 @@ chars_in_str <- function(x){
 # return the byte/s for each character assuming the string has the correct encoding
 string_to_code <- function(y){
   sapply(chars_in_str(y), 
-    function(x) paste(charToRaw(x), collapse = ":")
+    function(x) paste(charToRaw(x), collapse = "")
   )
 }
 
@@ -101,15 +163,154 @@ string_to_code(x_latin1)
 string_to_code(x_utf8)
 ```
 
+Therefore, character "é" is represented differently depending on the encoding used.
+
+In "latin-1", "é" is "\xe9" while in "UTF-8" reads "\xc3\xa9"
+
+
 ```{r}
-z <- c("–", "—")
+print("latin-1 Encoding")
+c_latin1 <- "é"
+cat("Character:", c_latin1, "\n")
+cat("Encoding:", Encoding(c_latin1), "\n")
+cat("Bytes representing the character:", charToRaw(c_latin1), "\n")
+cat("Class of the Raw bytes:", class(charToRaw(c_latin1)), "\n") 
+cat("Bytes as hexadecimals:")
+print(as.hexmode(as.character(charToRaw(c_latin1))))
+cat("Class of hexadecimals:", class(as.hexmode(as.character(charToRaw(c_latin1)))), "\n")
+int_eq <- as.integer(charToRaw(c_latin1))
+cat("Integer value:", int_eq, "\n")
+cat("Unicode code for the character:")
+print(Unicode::as.u_char(int_eq))
+```
+
+
+```{r}
+print("UTF-8 Encoding")
+c_latin1 <- "é"
+c_utf8 <- enc2utf8(c_latin1)
+cat("Character:", c_utf8, "\n")
+cat("Encoding:", Encoding(c_utf8), "\n")
+cat("Bytes representing the character:", charToRaw(c_utf8), "\n")
+cat("Class of the Raw bytes:", class(charToRaw(c_utf8)), "\n") 
+cat("Bytes as hexadecimals:")
+print(as.hexmode(as.character(charToRaw(c_utf8))))
+cat("Class of hexadecimals:", class(as.hexmode(as.character(charToRaw(c_utf8)))), "\n")
+int_eq <- utf8ToInt(c_utf8)
+cat("Integer value:", int_eq, "\n")
+cat("Unicode code for the character:")
+print(Unicode::as.u_char(int_eq))
+```
+
+Unicode code can be indicated with "\u"
+
+```{r}
+readLines(textConnection("\u00e9"))
 ```
 
 ```{r}
-Encoding(z)
+readLines(textConnection("\u00e9", encoding = "UTF-8"), encoding = "UTF-8")
+```
+
+```{r}
+readLines(textConnection(x_utf8, encoding = "UTF-8"), encoding = "UTF-8") |> 
+  {`[[`}(1) |> 
+  string_to_code()
+```
+Reading a string encoded in UTF-8 in latin-1 generates issues with some characters
+
+
+```{r}
+readLines(textConnection(x_latin1, encoding = "UTF-8")) |> 
+  {`[[`}(1) |> 
+  try(string_to_code())
+```
+And the opposite is also true, reading in UTF-8 a text encoded in latin-1,
+generates errors
+
+```{r}
+readLines(textConnection(x_latin1), encoding = "UTF-8") |> 
+  {`[[`}(1) |> 
+  try(string_to_code())
+```
+
+```{r}
+readLines("file_latin1.txt", encoding = "latin-1")
+```
+
+```{r}
+readLines("file_utf8.txt", encoding = "UTF-8")
+```
+If the encoding is not the right one, some characters are not read correctly
+
+```{r}
+readLines("file_latin1.txt", encoding = "UTF-8")
 ```
 ```{r}
-string_to_code("—")
+readLines("file_utf8.txt")
+```
+
+### Unicode
+
+```{r}
+c_ex <- "\U00B5"
+```
+
+```{r}
+print(c_ex)
+```
+
+```{r}
+code_c <- utf8ToInt(c_ex)
+u_char_name(code_c)
+u_char_label(code_c)
+```
+
+```{r}
+class(c_ex)
+```
+
+```{r}
+charToRaw(c_ex)
+```
+
+```{r}
+Encoding(c_ex)
+```
+
+```{r}
+utf8ToInt(c_ex)
+```
+
+```{r}
+intToUtf8(3000+0:9)
+```
+
+### Alternative minus sign
+
+```{r}
+z <- c("–", "—")
+z_utf8 <- enc2utf8(z)
+```
+
+```{r}
+Encoding(z_utf8)
+```
+
+```{r}
+charToRaw(z_utf8[1])
+```
+```{r}
+utf8ToInt(z_utf8[1])
+```
+```{r}
+u_char_label(utf8ToInt(z_utf8[1]))
+u_char_label(utf8ToInt(z_utf8[2]))
+```
+
+
+```{r}
+string_to_code(z_utf8)
 ```
 
 
