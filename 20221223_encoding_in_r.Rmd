@@ -313,9 +313,107 @@ u_char_label(utf8ToInt(z_utf8[2]))
 string_to_code(z_utf8)
 ```
 
+## Stackoverflow
+
+(https://stackoverflow.com/questions/29251934/how-to-convert-a-hex-string-to-text-in-r)
+
+```{r}
+s <- '1271763355662E324375203137'
+sc <- unlist(strsplit(s, ""))
+i1 <- (1:nchar(s)) %% 2 == 1
+# pairs of characters
+s_pairs1 <- paste0(sc[i1], sc[!i1])
+# pairs of characters understood as hexadecimals
+s_pairs2 <- paste0('0x', sc[i1], sc[!i1])
+s_hex1 <- s_pairs1 |> as.hexmode() 
+s_hex2 <- s_pairs2 |> as.hexmode()
+all(s_hex1 == s_hex2)
+# Turn hexadecimals into raw bytes
+s_raw1 <- s_hex1 |> as.raw()
+s_raw2 <- s_pairs1 |> as.raw()
+s_raw3 <- s_pairs2 |> as.raw()
+s_raw2bis <- s_pairs1 |> strtoi(base = 16L) |> as.raw()
+# filter non printable character integer value >= 32 ("0x20")
+result <- rawToChar(s_raw[s_raw >= as.raw("0x20")])
+result
+```
+<!-- 
+
+#An alternative way that separates the two parts involved:
+
+#1. Turn the initial string into a vector of bytes (with values as hexadecimals)
+#2. Convert those raw bytes into characters (excluding any not printable)
+
+
+#Part 1:
+
+
+s <- '1271763355662E324375203137'
+sc <- unlist(strsplit(s, ""))
+i1 <- (1:nchar(s)) %% 2 == 1
+# vector of bytes (as character)
+s_pairs1 <- paste0(sc[i1], sc[!i1])
+# make explicit it is a series of hexadecimals bytes
+s_pairs2 <- paste0("0x", s_pairs1)
+head(s_pairs2)
+
+
+#Part 2:
+
+
+s_raw1 <- as.raw(s_pairs2) 
+# filter non printable values (ascii < 32 = 0x20)
+s_raw2 <- s_raw1[s_raw1 >= as.raw("0x20")]
+rawToChar(s_raw2)
+
+
+#WE could also use `as.hexmode()` function to turn s_pairs1 into a vector of
+#hexadecimals
+
+
+s_pairs2 <-  as.hexmode(s_pairs1)
+head(s_pairs2)
+
+-->
 
 
 
+(https://stackoverflow.com/questions/66639163/convert-from-hexadecimal-to-unicode-in-r-language)
+
+```{r}
+## generate the sequence
+seq_ex <- 92:96
+seq_hex1 <- sprintf("%x", seq_ex)
+print(seq_hex1)
+seq_ex2 <- strtoi(seq_hex1, base = 16L) 
+print(seq_ex2)
+
+## Turn sequence into hexadecimal numbers sequence
+seq_hex3 <- as.hexmode(seq_hex1)
+seq_hex4 <- paste0("0x", seq_hex1)
+
+## convert it to characters
+rawToChar(as.raw(seq_hex3))
+rawToChar(as.raw(seq_hex4))
+rawToChar(as.raw(seq_ex))
+```
+
+R graphics question
+
+```{r}
+chars <-  sprintf("\\#H%04d", 861:866)
+chars2 <-  sprintf("%#04x", 861:866)
+chars <- "\\#H0065"
+
+grid::grid.newpage()
+grid::grid.text(chars, x = 1:6/7, gp = grid::gpar(fontfamily="HersheySans"))
+```
+```{r}
+grid::grid.text("hello", x = 1/4)
+```
 
 
+```{r}
+print(chars2)
+```
 
