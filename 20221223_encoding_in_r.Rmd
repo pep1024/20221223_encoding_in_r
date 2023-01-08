@@ -136,6 +136,7 @@ as.hexmode("4300")
 as.hexmode("0xe9")
 as.hexmode("e9")
 print("\xe9")
+print(rawToChar(as.raw("0xe9")))
 ```
 
 ```{r}
@@ -209,6 +210,11 @@ readLines(textConnection("\u00e9"))
 ```
 
 ```{r}
+readLines(textConnection(rawToChar(as.raw("0x00E9"))))
+```
+
+
+```{r}
 readLines(textConnection("\u00e9", encoding = "UTF-8"), encoding = "UTF-8")
 ```
 
@@ -217,6 +223,7 @@ readLines(textConnection(x_utf8, encoding = "UTF-8"), encoding = "UTF-8") |>
   {`[[`}(1) |> 
   string_to_code()
 ```
+
 Reading a string encoded in UTF-8 in latin-1 generates issues with some characters
 
 
@@ -225,6 +232,7 @@ readLines(textConnection(x_latin1, encoding = "UTF-8")) |>
   {`[[`}(1) |> 
   try(string_to_code())
 ```
+
 And the opposite is also true, reading in UTF-8 a text encoded in latin-1,
 generates errors
 
@@ -241,19 +249,27 @@ readLines("file_latin1.txt", encoding = "latin-1")
 ```{r}
 readLines("file_utf8.txt", encoding = "UTF-8")
 ```
+
 If the encoding is not the right one, some characters are not read correctly
 
 ```{r}
 readLines("file_latin1.txt", encoding = "UTF-8")
 ```
+
 ```{r}
 readLines("file_utf8.txt")
 ```
 
+<!-- 
+TO BE FINISHED
+1) how to know the information about an unicode character
+
+-->
+
 ### Unicode
 
 ```{r}
-c_ex <- "\U00B5"
+c_ex <- c("\u00B5", "\U00BB")
 ```
 
 ```{r}
@@ -261,7 +277,8 @@ print(c_ex)
 ```
 
 ```{r}
-code_c <- utf8ToInt(c_ex)
+print(c_ex)
+code_c <- sapply(c_ex, utf8ToInt)
 u_char_name(code_c)
 u_char_label(code_c)
 ```
@@ -271,7 +288,7 @@ class(c_ex)
 ```
 
 ```{r}
-charToRaw(c_ex)
+sapply(c_ex, charToRaw)
 ```
 
 ```{r}
@@ -279,141 +296,63 @@ Encoding(c_ex)
 ```
 
 ```{r}
-utf8ToInt(c_ex)
+sapply(c_ex, utf8ToInt)
 ```
 
+
+Turn a series into characters
+
 ```{r}
-intToUtf8(3000+0:9)
+int_series <- 1024+0:9
+cat(int_series, "\n")
+char_series <- intToUtf8(int_series)
+cat("Bytes as hexadecimals:", "\n" )
+string_to_code(char_series)
+cat("word: ", char_series, "\n")
+cat("# of characters: ", nchar(char_series), "\n")
+cat("# of bytes: ", nchar(char_series, type = "bytes"), "\n")
+cat("width: ", nchar(char_series, type = "width"), "\n")
+
 ```
 
 ### Alternative minus sign
 
+
+
 ```{r}
-z <- c("–", "—")
-z_utf8 <- enc2utf8(z)
+z <- c("+","-","–", "—", "\u2212", "\ufe63", "\uff0d", "-")
+print(z)
+Encoding(z)
+z_utf8 <- sapply(z, function(s) {
+  if(Encoding(s) == "UTF-8") {
+    return(s)
+  } else {
+    
+    return(enc2utf8(s))
+  }
+})
 ```
 
 ```{r}
+print(z_utf8)
 Encoding(z_utf8)
 ```
-
 ```{r}
-charToRaw(z_utf8[1])
-```
-```{r}
-utf8ToInt(z_utf8[1])
-```
-```{r}
-u_char_label(utf8ToInt(z_utf8[1]))
-u_char_label(utf8ToInt(z_utf8[2]))
-```
-
-
-```{r}
-string_to_code(z_utf8)
-```
-
-## Stackoverflow
-
-(https://stackoverflow.com/questions/29251934/how-to-convert-a-hex-string-to-text-in-r)
-
-```{r}
-s <- '1271763355662E324375203137'
-sc <- unlist(strsplit(s, ""))
-i1 <- (1:nchar(s)) %% 2 == 1
-# pairs of characters
-s_pairs1 <- paste0(sc[i1], sc[!i1])
-# pairs of characters understood as hexadecimals
-s_pairs2 <- paste0('0x', sc[i1], sc[!i1])
-s_hex1 <- s_pairs1 |> as.hexmode() 
-s_hex2 <- s_pairs2 |> as.hexmode()
-all(s_hex1 == s_hex2)
-# Turn hexadecimals into raw bytes
-s_raw1 <- s_hex1 |> as.raw()
-s_raw2 <- s_pairs1 |> as.raw()
-s_raw3 <- s_pairs2 |> as.raw()
-s_raw2bis <- s_pairs1 |> strtoi(base = 16L) |> as.raw()
-# filter non printable character integer value >= 32 ("0x20")
-result <- rawToChar(s_raw[s_raw >= as.raw("0x20")])
-result
-```
-<!-- 
-
-#An alternative way that separates the two parts involved:
-
-#1. Turn the initial string into a vector of bytes (with values as hexadecimals)
-#2. Convert those raw bytes into characters (excluding any not printable)
-
-
-#Part 1:
-
-
-s <- '1271763355662E324375203137'
-sc <- unlist(strsplit(s, ""))
-i1 <- (1:nchar(s)) %% 2 == 1
-# vector of bytes (as character)
-s_pairs1 <- paste0(sc[i1], sc[!i1])
-# make explicit it is a series of hexadecimals bytes
-s_pairs2 <- paste0("0x", s_pairs1)
-head(s_pairs2)
-
-
-#Part 2:
-
-
-s_raw1 <- as.raw(s_pairs2) 
-# filter non printable values (ascii < 32 = 0x20)
-s_raw2 <- s_raw1[s_raw1 >= as.raw("0x20")]
-rawToChar(s_raw2)
-
-
-#WE could also use `as.hexmode()` function to turn s_pairs1 into a vector of
-#hexadecimals
-
-
-s_pairs2 <-  as.hexmode(s_pairs1)
-head(s_pairs2)
-
--->
-
-
-
-(https://stackoverflow.com/questions/66639163/convert-from-hexadecimal-to-unicode-in-r-language)
-
-```{r}
-## generate the sequence
-seq_ex <- 92:96
-seq_hex1 <- sprintf("%x", seq_ex)
-print(seq_hex1)
-seq_ex2 <- strtoi(seq_hex1, base = 16L) 
-print(seq_ex2)
-
-## Turn sequence into hexadecimal numbers sequence
-seq_hex3 <- as.hexmode(seq_hex1)
-seq_hex4 <- paste0("0x", seq_hex1)
-
-## convert it to characters
-rawToChar(as.raw(seq_hex3))
-rawToChar(as.raw(seq_hex4))
-rawToChar(as.raw(seq_ex))
-```
-
-R graphics question
-
-```{r}
-chars <-  sprintf("\\#H%04d", 861:866)
-chars2 <-  sprintf("%#04x", 861:866)
-chars <- "\\#H0065"
-
-grid::grid.newpage()
-grid::grid.text(chars, x = 1:6/7, gp = grid::gpar(fontfamily="HersheySans"))
-```
-```{r}
-grid::grid.text("hello", x = 1/4)
+cat("UTF-8 Encoding\n---------\n")
+sapply(z_utf8, string_to_code)
+cat("UTF-8 into integers\n---------\n")
+sapply(z_utf8, utf8ToInt)
+cat("---------\nChar to raw\n")
+sapply(z_utf8, charToRaw)
+cat("---------\nUnicode labels\n")
+sapply(z_utf8, function(x) u_char_label(utf8ToInt(x)))
 ```
 
 
 ```{r}
-print(chars2)
+cat("Latin-1 Encoding\n---------\n")
+Encoding(z)
+sapply(z, string_to_code)
+cat("---------\nChar to raw\n")
+sapply(z, charToRaw)
 ```
-
