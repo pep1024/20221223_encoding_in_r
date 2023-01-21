@@ -24,10 +24,13 @@ This analysis is based on:
 
 * [Encoding character strings in R](https://rstudio-pubs-static.s3.amazonaws.com/279354_f552c4c41852439f910ad620763960b6.html)
 * [R4DS (2ed), WIP](https://r4ds.hadley.nz/strings.html)
+* [Encoding introduction](https://www.w3.org/International/questions/qa-what-is-encoding)
 
 ## Steps
 
 ### Platform
+
+First, I show which platform (operating system and computer) I'm working on
 
 ```{r}
 Sys.info()[1:5]
@@ -35,11 +38,14 @@ Sys.info()[1:5]
 
 ### System info
 
+More extended info about my system, including the locale setup
+
 ```{r}
 sessionInfo()
 ```
 
-Language is set to English in my .Rprofile file with the line `invisible(Sys.setlocale(locale = "English"))`. I revert it to my windows OS language with `Sys.setlocale()`
+Language is set to English in my .Rprofile file with the line `invisible(Sys.setlocale(locale = "English"))`. I revert it to my windows OS language with `Sys.setlocale()`.
+I've created function `locale_details()` to print locale info differently.
 
 ```{r}
 locales_detail <- function(){
@@ -51,7 +57,10 @@ locales_detail <- function(){
   names(v) <- sapply(info, \(x) x[1])
   return(v)
 }
+```
 
+
+```{r}
 locales_detail()
 ```
 
@@ -59,27 +68,42 @@ locales_detail()
 invisible(Sys.setlocale())
 locales_detail()
 ```
-
+By default, the global option "encoding" is set to "native.enc" 
 
 ```{r}
 getOption("encoding")
 ```
 ### Localization
 
+Function `l10n_info()` gives additional localization information. Last two 
+(codepage and system.codepage) only apply to Windows systems
+
 ```{r}
 l10n_info()
 ```
+
+With function `Sys.localeconv()` get details of the numerical and monetary
+represetantions in the current locale
 
 ```{r}
 Sys.localeconv()
 ```
 
-Therefore, by default I'm using "Latin-1" encoding.
+As I'm using Spanish Language, currency symbol is euro €. If locale is set to 
+"English" then locale currency is USD.
+
+```{r}
+old <- Sys.setlocale(locale = "English")
+Sys.localeconv()
+invisible(Sys.setlocale())
+```
 
 ### Encoding functions
 
 Three functions related to encoding in R base: `Encoding()`, `enc2native()` and 
 `enc2utf8()`
+
+I'm showing how a short sentence in encode both in 'latin-1' and 'UTF-8'
 
 ```{r}
 x_latin1 <- "Calçots més\n'El Niño'\n"
@@ -100,6 +124,7 @@ enc2native(x_latin1) |>
   Encoding()
 ```
 
+WE can encode the sentence in 'UTF-8) with function `enc2utf8()`
 
 ```{r}
 x_utf8 <- enc2utf8(x_latin1)
@@ -111,8 +136,15 @@ print(x_utf8)
 ```{r}
 cat(x_utf8)
 ```
+So, enoding is completely trasparent to the user is you read a string encoded
+in a given system using the same system. For strings with a defined encoding,
+`print()` function uses the right encoding.
 
 ### Convert to raw
+
+Encoding system determines the specific bytes values that represent that string.
+Representation in bytes of a string is turn character into raw class. For instance,
+Bytes representing the sentence used before encoded in latin-1 reads
 
 ```{r}
 x_bytes <- charToRaw(x_latin1)
@@ -122,22 +154,26 @@ x_bytes
 ```{r}
 class(x_bytes[1])
 ```
+Bytes (in hexadecimal notation) can be turn into integers
+
 ```{r}
 as.integer(x_bytes)
 ```
 
 ```{r}
-as.hexmode(as.character(x_bytes[1])) * as.hexmode("0x100")
+as.hexmode(as.character(x_bytes[1]))
 ```
-```{r}
-as.hexmode("4300")
-```
+Function `as.hexmode()` turns strings into hexmode class objects
+
 ```{r}
 as.hexmode("0xe9")
 as.hexmode("e9")
 print("\xe9")
 print(rawToChar(as.raw("0xe9")))
 ```
+
+We create a function that shows the bytes representation of each character in a
+given string (that have a defined encoding)
 
 ```{r}
 # split a string into characters
@@ -160,6 +196,17 @@ string_to_code <- function(y){
 string_to_code(x_latin1)
 ```
 
+when encoding is "latin-1", note that each character corresponds to one byte.
+Therefore, the length of the vector of characters returned by function
+`string_to_code()` will be the same as the length of the string:
+
+```{r}
+nchar(x_latin1)
+length(string_to_code(x_latin1))
+length(charToRaw(x_latin1))
+```
+when using 'UTF-8' encoding, some characters are represented using two bytes
+
 ```{r}
 string_to_code(x_utf8)
 ```
@@ -167,6 +214,12 @@ string_to_code(x_utf8)
 Therefore, character "é" is represented differently depending on the encoding used.
 
 In "latin-1", "é" is "\xe9" while in "UTF-8" reads "\xc3\xa9"
+
+```{r}
+nchar(x_utf8)
+length(string_to_code(x_utf8))
+length(charToRaw(x_utf8))
+```
 
 
 ```{r}
@@ -181,8 +234,9 @@ print(as.hexmode(as.character(charToRaw(c_latin1))))
 cat("Class of hexadecimals:", class(as.hexmode(as.character(charToRaw(c_latin1)))), "\n")
 int_eq <- as.integer(charToRaw(c_latin1))
 cat("Integer value:", int_eq, "\n")
-cat("Unicode code for the character:")
+cat("Unicode code for the character: ")
 print(Unicode::as.u_char(int_eq))
+cat("Unicode label for the character:", Unicode::u_char_label(int_eq), "\n")
 ```
 
 
@@ -201,9 +255,10 @@ int_eq <- utf8ToInt(c_utf8)
 cat("Integer value:", int_eq, "\n")
 cat("Unicode code for the character:")
 print(Unicode::as.u_char(int_eq))
+cat("Unicode label for the character:", Unicode::u_char_label(int_eq), "\n")
 ```
 
-Unicode code can be indicated with "\u"
+Unicode code can be indicated with "\\u"
 
 ```{r}
 readLines(textConnection("\u00e9"))
@@ -260,13 +315,7 @@ readLines("file_latin1.txt", encoding = "UTF-8")
 readLines("file_utf8.txt")
 ```
 
-<!-- 
-TO BE FINISHED
-1) how to know the information about an unicode character
-
--->
-
-### Unicode
+### Print a sequence of Unicode characters
 
 ```{r}
 c_ex <- c("\u00B5", "\U00BB")
@@ -279,8 +328,10 @@ print(c_ex)
 ```{r}
 print(c_ex)
 code_c <- sapply(c_ex, utf8ToInt)
-u_char_name(code_c)
-u_char_label(code_c)
+print("unicode name")
+Unicode::u_char_name(code_c)
+print("unicode label")
+Unicode::u_char_label(code_c)
 ```
 
 ```{r}
@@ -299,8 +350,7 @@ Encoding(c_ex)
 sapply(c_ex, utf8ToInt)
 ```
 
-
-Turn a series into characters
+Turn a UTF-8 sequence into characters
 
 ```{r}
 int_series <- 1024+0:9
@@ -318,9 +368,8 @@ cat("width: ", nchar(char_series, type = "width"), "\n")
 ### Alternative minus sign
 
 
-
 ```{r}
-z <- c("+","-","–", "—", "\u2212", "\ufe63", "\uff0d", "-")
+z <- c("+","-","–", "—", "\u2212", "\ufe63", "\uff0d")
 print(z)
 Encoding(z)
 z_utf8 <- sapply(z, function(s) {
@@ -345,7 +394,7 @@ sapply(z_utf8, utf8ToInt)
 cat("---------\nChar to raw\n")
 sapply(z_utf8, charToRaw)
 cat("---------\nUnicode labels\n")
-sapply(z_utf8, function(x) u_char_label(utf8ToInt(x)))
+sapply(z_utf8, function(x) Unicode::u_char_label(utf8ToInt(x)))
 ```
 
 
